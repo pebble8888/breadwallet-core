@@ -312,7 +312,7 @@ class CoreDemoEthereumClient : EthereumClient {
     }
 
     func getNonce(ewm: EthereumWalletManager, address: String, rid: Int32) {
-        ewm.announceNonce(address: address, nonce: "41", rid: rid)
+        ewm.announceNonce(address: address, nonce: "45", rid: rid)
     }
 
     //
