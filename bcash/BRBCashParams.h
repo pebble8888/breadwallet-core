@@ -26,9 +26,14 @@
 #define BRBCashParams_h
 
 #include "BRChainParams.h"
-#include "BRPeer.h"
 #include "BRInt.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define BCASH_FORKID 0x40
+    
 static const char *BRBCashDNSSeeds[] = {
     "seed-abc.breadwallet.com.", "seed.bitcoinabc.org.", "seed-abc.bitcoinforks.org.", "seed.bitcoinunlimited.info.",
     "seed.bitprim.org.", "seed.deadalnix.me.", NULL
@@ -171,6 +176,8 @@ static const BRChainParams BRBCashParams = {
     BRBCashVerifyDifficulty,
     BRBCashCheckpoints,
     sizeof(BRBCashCheckpoints)/sizeof(*BRBCashCheckpoints),
+    { BITCOIN_PUBKEY_PREFIX, BITCOIN_SCRIPT_PREFIX, BITCOIN_PRIVKEY_PREFIX, NULL },
+    BCASH_FORKID
 };
 
 static const BRChainParams BRBCashTestNetParams = {
@@ -180,7 +187,13 @@ static const BRChainParams BRBCashTestNetParams = {
     SERVICES_NODE_BCASH, // services
     BRBCashTestNetVerifyDifficulty,
     BRBCashTestNetCheckpoints,
-    sizeof(BRBCashTestNetCheckpoints)/sizeof(*BRBCashTestNetCheckpoints)
+    sizeof(BRBCashTestNetCheckpoints)/sizeof(*BRBCashTestNetCheckpoints),
+    { BITCOIN_PUBKEY_PREFIX_TEST, BITCOIN_SCRIPT_PREFIX_TEST, BITCOIN_PRIVKEY_PREFIX_TEST, NULL },
+    BCASH_FORKID
 };
 
-#endif // BRChainParams_h
+#ifdef __cplusplus
+}
+#endif
+
+#endif // BRBCashParams_h

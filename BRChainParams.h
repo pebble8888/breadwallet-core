@@ -27,10 +27,17 @@
 
 #include "BRMerkleBlock.h"
 #include "BRPeer.h"
+#include "BRAddress.h"
 #include "BRSet.h"
 #include "BRPeer.h"
 #include <assert.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define BITCOIN_FORKID 0x00
+    
 typedef struct {
     uint32_t height;
     UInt256 hash;
@@ -46,6 +53,8 @@ typedef struct {
     int (*verifyDifficulty)(const BRMerkleBlock *block, const BRSet *blockSet); // blockSet must have last 2016 blocks
     const BRCheckPoint *checkpoints;
     size_t checkpointsCount;
+    BRAddressParams addrParams;
+    uint8_t forkId;
 } BRChainParams;
 
 static const char *BRMainNetDNSSeeds[] = {
@@ -142,7 +151,9 @@ static const BRChainParams BRMainNetParams = {
     SERVICES_NODE_WITNESS, // services
     BRMainNetVerifyDifficulty,
     BRMainNetCheckpoints,
-    sizeof(BRMainNetCheckpoints)/sizeof(*BRMainNetCheckpoints)
+    sizeof(BRMainNetCheckpoints)/sizeof(*BRMainNetCheckpoints),
+    { BITCOIN_PUBKEY_PREFIX, BITCOIN_SCRIPT_PREFIX, BITCOIN_PRIVKEY_PREFIX, BITCOIN_BECH32_PREFIX },
+    BITCOIN_FORKID
 };
 
 static const BRChainParams BRTestNetParams = {
@@ -152,7 +163,13 @@ static const BRChainParams BRTestNetParams = {
     SERVICES_NODE_WITNESS, // services
     BRTestNetVerifyDifficulty,
     BRTestNetCheckpoints,
-    sizeof(BRTestNetCheckpoints)/sizeof(*BRTestNetCheckpoints)
+    sizeof(BRTestNetCheckpoints)/sizeof(*BRTestNetCheckpoints),
+    { BITCOIN_PUBKEY_PREFIX_TEST, BITCOIN_SCRIPT_PREFIX_TEST, BITCOIN_PRIVKEY_PREFIX_TEST, BITCOIN_BECH32_PREFIX_TEST },
+    BITCOIN_FORKID
 };
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // BRChainParams_h
