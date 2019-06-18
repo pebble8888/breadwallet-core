@@ -60,10 +60,10 @@
 // - local peer sends getblocks
 // - remote peer reponds with inv containing up to 500 block hashes
 // - local peer sends getdata with the block hashes
-// - remote peer responds with multiple merkleblock and tx messages
+// - remote peer responds with multiple _merkleblock and tx messages
 // - remote peer sends inv containg 1 hash, of the most recent block
 // - local peer sends getdata with the most recent block hash
-// - remote peer responds with merkleblock
+// - remote peer responds with _merkleblock
 // - if local peer can't connect the most recent block to the chain (because it started more than 500 blocks behind), go
 //   back to first step and repeat until entire chain is downloaded
 //
@@ -76,10 +76,10 @@
 // - remote peer responds with inv containing up to 500 block hashes
 // - local peer sends getdata with the block hashes
 // - if there were 500 hashes, local peer sends getblocks again without waiting for remote peer
-// - remote peer responds with multiple merkleblock and tx messages, followed by inv containing up to 500 block hashes
+// - remote peer responds with multiple _merkleblock and tx messages, followed by inv containing up to 500 block hashes
 // - previous two steps repeat until an inv with fewer than 500 block hashes is received
 // - local peer sends just getdata for the final set of fewer than 500 block hashes
-// - remote peer responds with multiple merkleblock and tx messages
+// - remote peer responds with multiple _merkleblock and tx messages
 // - if at any point tx messages consume enough wallet addresses to drop below the bip32 chain gap limit, more addresses
 //   are generated and local peer sends filterload with an updated bloom filter
 // - after filterload is sent, getdata is sent to re-request recent blocks that may contain new tx matching the filter
@@ -436,7 +436,7 @@ static int _BRPeerAcceptTxMessage(BRPeer *peer, const uint8_t *msg, size_t msgLe
         }
         else BRTransactionFree(tx);
 
-        if (ctx->currentBlock) { // we're collecting tx messages for a merkleblock
+        if (ctx->currentBlock) { // we're collecting tx messages for a _merkleblock
             for (size_t i = array_count(ctx->currentBlockTxHashes); i > 0; i--) {
                 if (! UInt256Eq(txHash, ctx->currentBlockTxHashes[i - 1])) continue;
                 array_rm(ctx->currentBlockTxHashes, i - 1);
@@ -492,7 +492,10 @@ static int _BRPeerAcceptHeadersMessage(BRPeer *peer, const uint8_t *msg, size_t 
                 BRSHA256_2(&locators[0], &msg[off + 81*(last - 1)], 80);
                 BRPeerSendGetblocks(peer, locators, 2, UINT256_ZERO);
             }
-            else BRPeerSendGetheaders(peer, locators, 2, UINT256_ZERO);
+            else
+            {
+                BRPeerSendGetheaders(peer, locators, 2, UINT256_ZERO);
+            }
 
             for (size_t i = 0; r && i < count; i++) {
                 BRMerkleBlock *block = BRMerkleBlockParse(&msg[off + 81*i], 81);
@@ -509,7 +512,10 @@ static int _BRPeerAcceptHeadersMessage(BRPeer *peer, const uint8_t *msg, size_t 
                 else if (ctx->relayedBlock) {
                     ctx->relayedBlock(ctx->info, block);
                 }
-                else BRMerkleBlockFree(block);
+                else
+                {
+                    BRMerkleBlockFree(block);
+                }
             }
         }
         else {
@@ -713,7 +719,16 @@ static int _BRPeerAcceptMerkleblockMessage(BRPeer *peer, const uint8_t *msg, siz
     // Bitcoin nodes don't support querying arbitrary transactions, only transactions not yet accepted in a block. After
     // a merkleblock message, the remote node is expected to send tx messages for the tx referenced in the block. When a
     // non-tx message is received we should have all the tx in the merkleblock.
+
+    // ビットコインノードは任意のトランザクションの問い合わせをサポートせず,ブロック中のまだ受信していないトランザクション
+    // だけをサポートする.
+    // マークルブロックメッセージの後,リモートノードは送ることを期待する,トランザクションメッセージを,ブロックで
+    // 参照されたトランザクションの.
+    // Non-Transaction メッセージを受けたとき、
+    // 我々はマークルブロック内の全てのトランザクションを持つはずである.
+    //
     BRPeerContext *ctx = (BRPeerContext *)peer;
+    // マークルブロックメッセージのデシリアライズ
     BRMerkleBlock *block = BRMerkleBlockParse(msg, msgLen);
     int r = 1;
   

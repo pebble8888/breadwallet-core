@@ -175,6 +175,8 @@ inline static void UInt32SetBE(void *b4, uint32_t u)
         (union _u32) { (u >> 24) & 0xff, (u >> 16) & 0xff, (u >> 8) & 0xff, u & 0xff };
 }
 
+// b4: dest
+// u : src
 inline static void UInt32SetLE(void *b4, uint32_t u)
 {
     *(union _u32 { uint8_t u8[32/8]; } *)b4 =

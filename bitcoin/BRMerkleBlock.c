@@ -135,6 +135,13 @@ BRMerkleBlock *BRMerkleBlockParse(const uint8_t *buf, size_t bufLen)
             if (block->flags) memcpy(block->flags, &buf[off], len);
         }
         
+        // version      4
+        // prev_block   32
+        // merkle_root  32
+        // timestamp    4
+        // target       4
+        // nonce        4
+        // --           80
         BRSHA256_2(&block->blockHash, buf, 80);
     }
     
@@ -241,7 +248,8 @@ void BRMerkleBlockSetTxHashes(BRMerkleBlock *block, const UInt256 hashes[], size
 static UInt256 _BRMerkleBlockRootR(const BRMerkleBlock *block, size_t *hashIdx, size_t *flagIdx, int depth)
 {
     uint8_t flag;
-    UInt256 hashes[2], md = UINT256_ZERO;
+    UInt256 hashes[2];
+    UInt256 md = UINT256_ZERO;
 
     if (*flagIdx/8 < block->flagsLen && *hashIdx < block->hashesCount) {
         flag = (block->flags[*flagIdx/8] & (1 << (*flagIdx % 8)));
@@ -252,12 +260,15 @@ static UInt256 _BRMerkleBlockRootR(const BRMerkleBlock *block, size_t *hashIdx, 
             hashes[1] = _BRMerkleBlockRootR(block, hashIdx, flagIdx, depth + 1); // right branch
 
             if (! UInt256IsZero(hashes[0]) && ! UInt256Eq(hashes[0], hashes[1])) {
-                if (UInt256IsZero(hashes[1])) hashes[1] = hashes[0]; // if right branch is missing, dup left branch
+                if (UInt256IsZero(hashes[1]))
+                    hashes[1] = hashes[0]; // if right branch is missing, dup left branch
                 BRSHA256_2(&md, hashes, sizeof(hashes));
             }
-            else *hashIdx = SIZE_MAX; // defend against (CVE-2012-2459)
+            else
+                *hashIdx = SIZE_MAX; // defend against (CVE-2012-2459)
         }
-        else md = block->hashes[(*hashIdx)++]; // leaf
+        else
+            md = block->hashes[(*hashIdx)++]; // leaf
     }
     
     return md;
@@ -272,26 +283,46 @@ int BRMerkleBlockIsValid(const BRMerkleBlock *block, uint32_t currentTime)
     
     // target is in "compact" format, where the most significant byte is the size of the value in bytes, next
     // bit is the sign, and the last 23 bits is the value after having been right shifted by (size - 3)*8 bits
-    const uint32_t size = block->target >> 24, target = block->target & 0x007fffff;
-    size_t hashIdx = 0, flagIdx = 0;
-    UInt256 merkleRoot = _BRMerkleBlockRootR(block, &hashIdx, &flagIdx, 0), t = UINT256_ZERO;
+    const uint32_t size = block->target >> 24;
+    const uint32_t target = block->target & 0x007fffff;
+    size_t hashIdx = 0;
+    size_t flagIdx = 0;
+    UInt256 merkleRoot = _BRMerkleBlockRootR(block, &hashIdx, &flagIdx, 0);
+    UInt256 t = UINT256_ZERO;
     int r = 1;
     
     // check if merkle root is correct
-    if (block->totalTx > 0 && ! UInt256Eq(merkleRoot, block->merkleRoot)) r = 0;
+    if (block->totalTx > 0 && ! UInt256Eq(merkleRoot, block->merkleRoot))
+        r = 0;
     
     // check if timestamp is too far in future
-    if (block->timestamp > currentTime + BLOCK_MAX_TIME_DRIFT) r = 0;
+    if (block->timestamp > currentTime + BLOCK_MAX_TIME_DRIFT)
+        r = 0;
     
     // check if proof-of-work target is out of range
-    if (target == 0 || (block->target & 0x00800000) || block->target > MAX_PROOF_OF_WORK) r = 0;
+    if (target == 0 || (block->target & 0x00800000) || block->target > MAX_PROOF_OF_WORK)
+        r = 0;
     
-    if (size > 3) UInt32SetLE(&t.u8[size - 3], target);
-    else UInt32SetLE(t.u8, target >> (3 - size)*8);
+    if (size > 3)
+        UInt32SetLE(&t.u8[size - 3], target);
+    else
+        UInt32SetLE(t.u8, target >> (3 - size)*8);
     
-    for (int i = sizeof(t) - 1; r && i >= 0; i--) { // check proof-of-work
-        if (block->blockHash.u8[i] < t.u8[i]) break;
-        if (block->blockHash.u8[i] > t.u8[i]) r = 0;
+    // sizeof(t) is 32
+    // t: メッセージのターゲット値
+    // blockhash 
+    // sha256 のダブルハッシュ値 と メッセージのターゲット値を比べている???
+    // 位が大きい方から比べる
+    // sha256の値の比較に置き換え可能
+    for (int i = sizeof(t) - 1; (r != 0) && i >= 0; i--) { // check proof-of-work
+        if (block->blockHash.u8[i] < t.u8[i]) {
+            // ブロックチェーンの方がターゲットより小さければそこで終わり(OK)
+            break;
+        } else if (block->blockHash.u8[i] > t.u8[i]) {
+            // invalid
+            r = 0;
+        }
+        // ブロックチェーンの値とターゲットの値が同じ 
     }
     
     return r;
